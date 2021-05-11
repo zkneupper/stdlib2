@@ -188,10 +188,7 @@ def config_dict(filename):
             value = eval(value)
         else:
             try:
-                if "." in value:
-                    value = float(value)
-                else:
-                    value = int(value)
+                value = float(value) if "." in value else int(value)
             except ValueError:
                 pass # value need not be converted
         cfgdict[key] = value
@@ -256,7 +253,7 @@ class Vec2D(tuple):
             return self[0]*other[0]+self[1]*other[1]
         return Vec2D(self[0]*other, self[1]*other)
     def __rmul__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
+        if isinstance(other, (int, float)):
             return Vec2D(self[0]*other, self[1]*other)
         return NotImplemented
     def __sub__(self, other):
@@ -310,13 +307,15 @@ def __forwardmethods(fromClass, toClass, toPart, exclude = ()):
     ### MANY CHANGES ###
     _dict_1 = {}
     __methodDict(toClass, _dict_1)
-    _dict = {}
     mfc = __methods(fromClass)
-    for ex in _dict_1.keys():
-        if ex[:1] == '_' or ex[-1:] == '_' or ex in exclude or ex in mfc:
-            pass
-        else:
-            _dict[ex] = _dict_1[ex]
+    _dict = {
+        ex: _dict_1[ex]
+        for ex in _dict_1
+        if ex[:1] != '_'
+        and ex[-1:] != '_'
+        and ex not in exclude
+        and ex not in mfc
+    }
 
     for method, func in _dict.items():
         d = {'method': method, 'func': func}
@@ -577,11 +576,11 @@ class TurtleScreenBase(object):
     def _bgcolor(self, color=None):
         """Set canvas' backgroundcolor if color is not None,
         else return backgroundcolor."""
-        if color is not None:
-            self.cv.config(bg = color)
-            self._update()
-        else:
+        if color is None:
             return self.cv.cget("bg")
+
+        self.cv.config(bg = color)
+        self._update()
 
     def _write(self, pos, txt, align, font, pencolor):
         """Write txt at pos in canvas with specified font
@@ -752,8 +751,7 @@ class TurtleScreenBase(object):
         (9.9999999999999982, 0.0)]
         >>> """
         cl = self.cv.coords(item)
-        pl = [(cl[i], -cl[i+1]) for i in range(0, len(cl), 2)]
-        return  pl
+        return [(cl[i], -cl[i+1]) for i in range(0, len(cl), 2)]
 
     def _setscrollregion(self, srx1, sry1, srx2, sry2):
         self.cv.config(scrollregion=(srx1, sry1, srx2, sry2))
@@ -942,10 +940,9 @@ class Tbuffer(object):
             item = self.buffer[self.ptr]
             if item is None:
                 return None
-            else:
-                self.buffer[self.ptr] = [None]
-                self.ptr = (self.ptr - 1) % self.bufsize
-                return (item)
+            self.buffer[self.ptr] = [None]
+            self.ptr = (self.ptr - 1) % self.bufsize
+            return (item)
     def nr_of_items(self):
         return self.bufsize - self.buffer.count([None])
     def __repr__(self):
@@ -1234,10 +1231,7 @@ class TurtleScreen(TurtleScreenBase):
         >>> screen.bgcolor()
         '#800080'
         """
-        if args:
-            color = self._colorstr(args)
-        else:
-            color = None
+        color = self._colorstr(args) if args else None
         color = self._bgcolor(color)
         if color is not None:
             color = self._color(color)
@@ -1557,10 +1551,7 @@ class TNavigator(object):
         """Helper function for degrees() and radians()"""
         self._fullcircle = fullcircle
         self._degreesPerAU = 360/fullcircle
-        if self._mode == "standard":
-            self._angleOffset = 0
-        else:
-            self._angleOffset = fullcircle/4.
+        self._angleOffset = 0 if self._mode == "standard" else fullcircle/4.
 
     def degrees(self, fullcircle=360.0):
         """ Set angle measurement units to degrees.
@@ -1987,7 +1978,7 @@ class TNavigator(object):
         else:
             self.speed(0)
         self._rotate(w2)
-        for i in range(steps):
+        for _ in range(steps):
             self.speed(speed)
             self._go(l)
             self.speed(0)
@@ -2206,19 +2197,18 @@ class TPen(object):
         >>> color()
         ('#285078', '#a0c8f0')
         """
-        if args:
-            l = len(args)
-            if l == 1:
-                pcolor = fcolor = args[0]
-            elif l == 2:
-                pcolor, fcolor = args
-            elif l == 3:
-                pcolor = fcolor = args
-            pcolor = self._colorstr(pcolor)
-            fcolor = self._colorstr(fcolor)
-            self.pen(pencolor=pcolor, fillcolor=fcolor)
-        else:
+        if not args:
             return self._color(self._pencolor), self._color(self._fillcolor)
+        l = len(args)
+        if l == 1:
+            pcolor = fcolor = args[0]
+        elif l == 2:
+            pcolor, fcolor = args
+        elif l == 3:
+            pcolor = fcolor = args
+        pcolor = self._colorstr(pcolor)
+        fcolor = self._colorstr(fcolor)
+        self.pen(pencolor=pcolor, fillcolor=fcolor)
 
     def pencolor(self, *args):
         """ Return or set the pencolor.
@@ -2249,13 +2239,13 @@ class TPen(object):
         >>> turtle.pencolor()
         '#33cc8c'
         """
-        if args:
-            color = self._colorstr(args)
-            if color == self._pencolor:
-                return
-            self.pen(pencolor=color)
-        else:
+        if not args:
             return self._color(self._pencolor)
+
+        color = self._colorstr(args)
+        if color == self._pencolor:
+            return
+        self.pen(pencolor=color)
 
     def fillcolor(self, *args):
         """ Return or set the fillcolor.
@@ -2285,13 +2275,13 @@ class TPen(object):
         >>> turtle.fillcolor(col)
         >>> turtle.fillcolor(0, .5, 0)
         """
-        if args:
-            color = self._colorstr(args)
-            if color == self._fillcolor:
-                return
-            self.pen(fillcolor=color)
-        else:
+        if not args:
             return self._color(self._fillcolor)
+
+        color = self._colorstr(args)
+        if color == self._fillcolor:
+            return
+        self.pen(fillcolor=color)
 
     def showturtle(self):
         """Makes the turtle visible.
@@ -2397,31 +2387,23 @@ class TPen(object):
         if not (pen or pendict):
             return _pd
 
-        if isinstance(pen, dict):
-            p = pen
-        else:
-            p = {}
+        p = pen if isinstance(pen, dict) else {}
         p.update(pendict)
 
-        _p_buf = {}
-        for key in p:
-            _p_buf[key] = _pd[key]
-
+        _p_buf = {key: _pd[key] for key in p}
         if self.undobuffer:
             self.undobuffer.push(("pen", _p_buf))
 
         newLine = False
-        if "pendown" in p:
-            if self._drawing != p["pendown"]:
-                newLine = True
+        if "pendown" in p and self._drawing != p["pendown"]:
+            newLine = True
         if "pencolor" in p:
             if isinstance(p["pencolor"], tuple):
                 p["pencolor"] = self._colorstr((p["pencolor"],))
             if self._pencolor != p["pencolor"]:
                 newLine = True
-        if "pensize" in p:
-            if self._pensize != p["pensize"]:
-                newLine = True
+        if "pensize" in p and self._pensize != p["pensize"]:
+            newLine = True
         if newLine:
             self._newLine()
         if "pendown" in p:
@@ -2773,7 +2755,7 @@ class RawTurtle(TPen, TNavigator):
         """
         if name is None:
             return self.turtle.shapeIndex
-        if not name in self.screen.getshapes():
+        if name not in self.screen.getshapes():
             raise TurtleGraphicsError("There is no shape named %s" % name)
         self.turtle._setshape(name)
         self._update()
@@ -3168,12 +3150,9 @@ class RawTurtle(TPen, TNavigator):
             nhops = 1+int((diffsq**0.5)/(3*(1.1**self._speed)*self._speed))
             delta = diff * (1.0/nhops)
             for n in range(1, nhops):
-                if n == 1:
-                    top = True
-                else:
-                    top = False
                 self._position = start + delta * n
                 if self._drawing:
+                    top = n == 1
                     screen._drawline(self.drawingLineItem,
                                      (start, self._position),
                                      self._pencolor, self._pensize, top)
@@ -3208,10 +3187,7 @@ class RawTurtle(TPen, TNavigator):
         self.currentLineItem = cLI
         self.currentLine = cL
 
-        if pl == [(0, 0), (0, 0)]:
-            usepc = ""
-        else:
-            usepc = pc
+        usepc = "" if pl == [(0, 0), (0, 0)] else pc
         screen._drawline(cLI, pl, fill=usepc, width=ps)
 
         todelete = [i for i in self.items if (i not in items) and
@@ -3227,12 +3203,9 @@ class RawTurtle(TPen, TNavigator):
             nhops = 1+int((diffsq**0.5)/(3*(1.1**self._speed)*self._speed))
             delta = diff * (1.0/nhops)
             for n in range(1, nhops):
-                if n == 1:
-                    top = True
-                else:
-                    top = False
                 self._position = new + delta * n
                 if drawing:
+                    top = n == 1
                     screen._drawline(self.drawingLineItem,
                                      (start, self._position),
                                      pc, ps, top)
@@ -4020,7 +3993,7 @@ if __name__ == "__main__":
         write("start", 1)
         color("red")
         # staircase
-        for i in range(5):
+        for _ in range(5):
             forward(20)
             left(90)
             forward(20)
@@ -4028,7 +4001,7 @@ if __name__ == "__main__":
         # filled staircase
         tracer(True)
         begin_fill()
-        for i in range(5):
+        for _ in range(5):
             forward(20)
             left(90)
             forward(20)

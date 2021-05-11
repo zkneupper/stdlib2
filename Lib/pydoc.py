@@ -244,12 +244,10 @@ def _is_bound_method(fn):
 
 
 def allmethods(cl):
-    methods = {}
-    for key, value in inspect.getmembers(cl, inspect.isroutine):
-        methods[key] = 1
+    methods = {key: 1 for key, value in inspect.getmembers(cl, inspect.isroutine)}
     for base in cl.__bases__:
         methods.update(allmethods(base)) # all your base are belong to us
-    for key in methods.keys():
+    for key in methods:
         methods[key] = getattr(cl, key)
     return methods
 
@@ -420,18 +418,21 @@ def safeimport(path, forceload=0, cache={}):
         # disk, we always have to reload the module.  Checking the file's
         # mtime isn't good enough (e.g. the module could contain a class
         # that inherits from another module that has changed).
-        if forceload and path in sys.modules:
-            if path not in sys.builtin_module_names:
-                # Remove the module from sys.modules and re-import to try
-                # and avoid problems with partially loaded modules.
-                # Also remove any submodules because they won't appear
-                # in the newly loaded module's namespace if they're already
-                # in sys.modules.
-                subs = [m for m in sys.modules if m.startswith(path + '.')]
-                for key in [path] + subs:
-                    # Prevent garbage collection.
-                    cache[key] = sys.modules[key]
-                    del sys.modules[key]
+        if (
+            forceload
+            and path in sys.modules
+            and path not in sys.builtin_module_names
+        ):
+            # Remove the module from sys.modules and re-import to try
+            # and avoid problems with partially loaded modules.
+            # Also remove any submodules because they won't appear
+            # in the newly loaded module's namespace if they're already
+            # in sys.modules.
+            subs = [m for m in sys.modules if m.startswith(path + '.')]
+            for key in [path] + subs:
+                # Prevent garbage collection.
+                cache[key] = sys.modules[key]
+                del sys.modules[key]
         module = __import__(path)
     except:
         # Did the error occur before or after the module was found?
@@ -623,11 +624,11 @@ class HTMLDoc(Doc):
         result = ''
         rows = (len(list)+cols-1)//cols
         for col in range(cols):
-            result = result + '<td width="%d%%" valign=top>' % (100//cols)
+            result += '<td width="%d%%" valign=top>' % (100//cols)
             for i in range(rows*col, rows*col+rows):
                 if i < len(list):
                     result = result + format(list[i]) + '<br>\n'
-            result = result + '</td>'
+            result += '</td>'
         return '<table width="100%%" summary="list"><tr>%s</tr></table>' % result
 
     def grey(self, text): return '<font color="#909090">%s</font>' % text
@@ -656,14 +657,8 @@ class HTMLDoc(Doc):
         name, path, ispackage, shadowed = modpkginfo
         if shadowed:
             return self.grey(name)
-        if path:
-            url = '%s.%s.html' % (path, name)
-        else:
-            url = '%s.html' % name
-        if ispackage:
-            text = '<strong>%s</strong>&nbsp;(package)' % name
-        else:
-            text = name
+        url = '%s.%s.html' % (path, name) if path else '%s.html' % name
+        text = '<strong>%s</strong>&nbsp;(package)' % name if ispackage else name
         return '<a href="%s">%s</a>' % (url, text)
 
     def filelink(self, url, path):
@@ -719,16 +714,14 @@ class HTMLDoc(Doc):
         for entry in tree:
             if type(entry) is type(()):
                 c, bases = entry
-                result = result + '<dt><font face="helvetica, arial">'
-                result = result + self.classlink(c, modname)
+                result += '<dt><font face="helvetica, arial">'
+                result += self.classlink(c, modname)
                 if bases and bases != (parent,):
-                    parents = []
-                    for base in bases:
-                        parents.append(self.classlink(base, modname))
+                    parents = [self.classlink(base, modname) for base in bases]
                     result = result + '(' + ', '.join(parents) + ')'
-                result = result + '\n</font></dt>'
+                result += '\n</font></dt>'
             elif type(entry) is type([]):
-                result = result + '<dd>\n%s</dd>\n' % self.formattree(
+                result += '<dd>\n%s</dd>\n' % self.formattree(
                     entry, modname, c)
         return '<dl>\n%s</dl>\n' % result
 
@@ -740,11 +733,8 @@ class HTMLDoc(Doc):
         except AttributeError:
             all = None
         parts = name.split('.')
-        links = []
-        for i in range(len(parts)-1):
-            links.append(
-                '<a href="%s.html"><font color="#ffffff">%s</font></a>' %
-                ('.'.join(parts[:i+1]), parts[i]))
+        links = ['<a href="%s.html"><font color="#ffffff">%s</font></a>' %
+                ('.'.join(parts[:i+1]), parts[i]) for i in range(len(parts)-1)]
         linkedname = '.'.join(links + parts[-1:])
         head = '<big><big><strong>%s</strong></big></big>' % linkedname
         try:
@@ -777,41 +767,54 @@ class HTMLDoc(Doc):
         classes, cdict = [], {}
         for key, value in inspect.getmembers(object, inspect.isclass):
             # if __all__ exists, believe it.  Otherwise use old heuristic.
-            if (all is not None or
-                (inspect.getmodule(value) or object) is object):
-                if visiblename(key, all, object):
-                    classes.append((key, value))
-                    cdict[key] = cdict[value] = '#' + key
+            if (
+                (all is not None or (inspect.getmodule(value) or object) is object)
+            ) and visiblename(key, all, object):
+                classes.append((key, value))
+                cdict[key] = cdict[value] = '#' + key
         for key, value in classes:
             for base in value.__bases__:
                 key, modname = base.__name__, base.__module__
                 module = sys.modules.get(modname)
-                if modname != name and module and hasattr(module, key):
-                    if getattr(module, key) is base:
-                        if not key in cdict:
-                            cdict[key] = cdict[base] = modname + '.html#' + key
+                if (
+                    modname != name
+                    and module
+                    and hasattr(module, key)
+                    and getattr(module, key) is base
+                    and not key in cdict
+                ):
+                    cdict[key] = cdict[base] = modname + '.html#' + key
         funcs, fdict = [], {}
         for key, value in inspect.getmembers(object, inspect.isroutine):
             # if __all__ exists, believe it.  Otherwise use old heuristic.
-            if (all is not None or
-                inspect.isbuiltin(value) or inspect.getmodule(value) is object):
-                if visiblename(key, all, object):
-                    funcs.append((key, value))
-                    fdict[key] = '#-' + key
-                    if inspect.isfunction(value): fdict[value] = fdict[key]
-        data = []
-        for key, value in inspect.getmembers(object, isdata):
-            if visiblename(key, all, object):
-                data.append((key, value))
+            if (
+                (
+                    all is not None
+                    or inspect.isbuiltin(value)
+                    or inspect.getmodule(value) is object
+                )
+            ) and visiblename(key, all, object):
+                funcs.append((key, value))
+                fdict[key] = '#-' + key
+                if inspect.isfunction(value): fdict[value] = fdict[key]
+        data = [
+            (key, value)
+            for key, value in inspect.getmembers(object, isdata)
+            if visiblename(key, all, object)
+        ]
 
         doc = self.markup(getdoc(object), self.preformat, fdict, cdict)
         doc = doc and '<tt>%s</tt>' % doc
         result = result + '<p>%s</p>\n' % doc
 
         if hasattr(object, '__path__'):
-            modpkgs = []
-            for importer, modname, ispkg in pkgutil.iter_modules(object.__path__):
-                modpkgs.append((modname, name, ispkg, 0))
+            modpkgs = [
+                (modname, name, ispkg, 0)
+                for importer, modname, ispkg in pkgutil.iter_modules(
+                    object.__path__
+                )
+            ]
+
             modpkgs.sort()
             contents = self.multicolumn(modpkgs, self.modpkglink)
             result = result + self.bigsection(
@@ -831,15 +834,15 @@ class HTMLDoc(Doc):
             result = result + self.bigsection(
                 'Classes', '#ffffff', '#ee77aa', ' '.join(contents))
         if funcs:
-            contents = []
-            for key, value in funcs:
-                contents.append(self.document(value, key, name, fdict, cdict))
+            contents = [
+                self.document(value, key, name, fdict, cdict)
+                for key, value in funcs
+            ]
+
             result = result + self.bigsection(
                 'Functions', '#ffffff', '#eeaa77', ' '.join(contents))
         if data:
-            contents = []
-            for key, value in data:
-                contents.append(self.document(value, key))
+            contents = [self.document(value, key) for key, value in data]
             result = result + self.bigsection(
                 'Data', '#ffffff', '#55aa55', '<br>\n'.join(contents))
         if hasattr(object, '__author__'):

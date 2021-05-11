@@ -231,10 +231,7 @@ class Unpacker:
         return list
 
     def unpack_farray(self, n, unpack_item):
-        list = []
-        for i in range(n):
-            list.append(unpack_item())
-        return list
+        return [unpack_item() for _ in range(n)]
 
     def unpack_array(self, unpack_item):
         n = self.unpack_uint()

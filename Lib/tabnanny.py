@@ -169,7 +169,7 @@ class Whitespace:
                 n = n + 1
                 nt = nt + 1
                 if b >= len(count):
-                    count = count + [0] * (b - len(count) + 1)
+                    count += [0] * (b - len(count) + 1)
                 count[b] = count[b] + 1
                 b = 0
             else:
@@ -201,9 +201,7 @@ class Whitespace:
         # and note that i//ts*count[i] is 0 when i < ts
 
         count, trailing = self.norm
-        il = 0
-        for i in range(tabsize, len(count)):
-            il = il + i//tabsize * count[i]
+        il = sum(i//tabsize * count[i] for i in range(tabsize, len(count)))
         return trailing + tabsize * (il + self.nt)
 
     # return true iff self.indent_level(t) == other.indent_level(t)
@@ -218,13 +216,11 @@ class Whitespace:
     def not_equal_witness(self, other):
         n = max(self.longest_run_of_spaces(),
                 other.longest_run_of_spaces()) + 1
-        a = []
-        for ts in range(1, n+1):
-            if self.indent_level(ts) != other.indent_level(ts):
-                a.append( (ts,
-                           self.indent_level(ts),
-                           other.indent_level(ts)) )
-        return a
+        return [
+            (ts, self.indent_level(ts), other.indent_level(ts))
+            for ts in range(1, n + 1)
+            if self.indent_level(ts) != other.indent_level(ts)
+        ]
 
     # Return True iff self.indent_level(t) < other.indent_level(t)
     # for all t >= 1.
@@ -259,19 +255,17 @@ class Whitespace:
     def not_less_witness(self, other):
         n = max(self.longest_run_of_spaces(),
                 other.longest_run_of_spaces()) + 1
-        a = []
-        for ts in range(1, n+1):
-            if self.indent_level(ts) >= other.indent_level(ts):
-                a.append( (ts,
-                           self.indent_level(ts),
-                           other.indent_level(ts)) )
-        return a
+        return [
+            (ts, self.indent_level(ts), other.indent_level(ts))
+            for ts in range(1, n + 1)
+            if self.indent_level(ts) >= other.indent_level(ts)
+        ]
 
 def format_witnesses(w):
     firsts = (str(tup[0]) for tup in w)
     prefix = "at tab size"
     if len(w) > 1:
-        prefix = prefix + "s"
+        prefix += "s"
     return prefix + " " + ', '.join(firsts)
 
 def process_tokens(tokens):

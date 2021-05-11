@@ -47,11 +47,7 @@ class SymbolTable:
         self._symbols = {}
 
     def __repr__(self):
-        if self.__class__ == SymbolTable:
-            kind = ""
-        else:
-            kind = "%s " % self.__class__.__name__
-
+        kind = "" if self.__class__ == SymbolTable else "%s " % self.__class__.__name__
         if self._table.name == "top":
             return "<{0}SymbolTable for module {1}>".format(kind, self._filename)
         else:
@@ -209,9 +205,7 @@ class Class(SymbolTable):
         """Return a tuple of methods declared in the class.
         """
         if self.__methods is None:
-            d = {}
-            for st in self._table.children:
-                d[st.name] = 1
+            d = {st.name: 1 for st in self._table.children}
             self.__methods = tuple(d)
         return self.__methods
 

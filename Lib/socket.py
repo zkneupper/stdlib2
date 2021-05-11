@@ -48,6 +48,7 @@ Many other constants may be defined; these may be used in calls to
 the setsockopt() and getsockopt() methods.
 """
 
+
 import _socket
 from _socket import *
 
@@ -62,9 +63,16 @@ EBADF = getattr(errno, 'EBADF', 9)
 EAGAIN = getattr(errno, 'EAGAIN', 11)
 EWOULDBLOCK = getattr(errno, 'EWOULDBLOCK', 11)
 
-__all__ = ["fromfd", "getfqdn", "create_connection", "create_server",
-           "has_dualstack_ipv6", "AddressFamily", "SocketKind"]
-__all__.extend(os._get_exports_list(_socket))
+__all__ = [
+    "fromfd",
+    "getfqdn",
+    "create_connection",
+    "create_server",
+    "has_dualstack_ipv6",
+    "AddressFamily",
+    "SocketKind",
+    *os._get_exports_list(_socket),
+]
 
 # Set up the socket.AF_* socket.SOCK_* constants as members of IntEnums for
 # nicer string representations.

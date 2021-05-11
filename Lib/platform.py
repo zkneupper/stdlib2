@@ -187,7 +187,6 @@ def libc_ver(executable=None, lib='', version='', chunksize=16384):
 
         executable = sys.executable
 
-    V = _comparable_version
     if hasattr(os.path, 'realpath'):
         # Python 2.2 introduced os.path.realpath(); it is used
         # here to work around problems with Cygwin not being
@@ -196,6 +195,7 @@ def libc_ver(executable=None, lib='', version='', chunksize=16384):
     with open(executable, 'rb') as f:
         binary = f.read(chunksize)
         pos = 0
+        V = _comparable_version
         while pos < len(binary):
             if b'libc' in binary or b'GLIBC' in binary:
                 m = _libc_search.search(binary, pos)
@@ -1306,6 +1306,6 @@ def freedesktop_os_release():
 if __name__ == '__main__':
     # Default is to print the aliased verbose platform string
     terse = ('terse' in sys.argv or '--terse' in sys.argv)
-    aliased = (not 'nonaliased' in sys.argv and not '--nonaliased' in sys.argv)
+    aliased = 'nonaliased' not in sys.argv and '--nonaliased' not in sys.argv
     print(platform(aliased, terse))
     sys.exit(0)

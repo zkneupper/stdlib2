@@ -139,7 +139,7 @@ class Error(Exception):
 
 def _read_u32(file):
     x = 0
-    for i in range(4):
+    for _ in range(4):
         byte = file.read(1)
         if not byte:
             raise EOFError
@@ -148,7 +148,7 @@ def _read_u32(file):
 
 def _write_u32(file, x):
     data = []
-    for i in range(4):
+    for _ in range(4):
         d, m = divmod(x, 256)
         data.insert(0, int(m))
         x = d
@@ -268,17 +268,17 @@ class Au_read:
         raise Error('no marks')
 
     def readframes(self, nframes):
-        if self._encoding in _simple_encodings:
-            if nframes == AUDIO_UNKNOWN_SIZE:
-                data = self._file.read()
-            else:
-                data = self._file.read(nframes * self._framesize)
-            self._soundpos += len(data) // self._framesize
-            if self._encoding == AUDIO_FILE_ENCODING_MULAW_8:
-                import audioop
-                data = audioop.ulaw2lin(data, self._sampwidth)
-            return data
-        return None             # XXX--not implemented yet
+        if self._encoding not in _simple_encodings:
+            return None             # XXX--not implemented yet
+        if nframes == AUDIO_UNKNOWN_SIZE:
+            data = self._file.read()
+        else:
+            data = self._file.read(nframes * self._framesize)
+        self._soundpos += len(data) // self._framesize
+        if self._encoding == AUDIO_FILE_ENCODING_MULAW_8:
+            import audioop
+            data = audioop.ulaw2lin(data, self._sampwidth)
+        return data
 
     def rewind(self):
         if self._data_pos is None:
@@ -514,10 +514,7 @@ class Au_write:
 
 def open(f, mode=None):
     if mode is None:
-        if hasattr(f, 'mode'):
-            mode = f.mode
-        else:
-            mode = 'rb'
+        mode = f.mode if hasattr(f, 'mode') else 'rb'
     if mode in ('r', 'rb'):
         return Au_read(f)
     elif mode in ('w', 'wb'):

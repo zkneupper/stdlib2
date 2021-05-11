@@ -228,14 +228,13 @@ def _prepare_paramspec_params(cls, params):
     # Special case where Z[[int, str, bool]] == Z[int, str, bool] in PEP 612.
     if len(cls.__parameters__) == 1 and len(params) > 1:
         return (params,)
-    else:
-        _params = []
-        # Convert lists to tuples to help other libraries cache the results.
-        for p, tvar in zip(params, cls.__parameters__):
-            if isinstance(tvar, ParamSpec) and isinstance(p, list):
-                p = tuple(p)
-            _params.append(p)
-        return tuple(_params)
+    _params = []
+    # Convert lists to tuples to help other libraries cache the results.
+    for p, tvar in zip(params, cls.__parameters__):
+        if isinstance(tvar, ParamSpec) and isinstance(p, list):
+            p = tuple(p)
+        _params.append(p)
+    return tuple(_params)
 
 def _deduplicate(params):
     # Weed out strict duplicates, preserving the first of each occurrence.
@@ -688,10 +687,7 @@ class _TypeVarLike:
             raise ValueError("Bivariant types are not supported.")
         self.__covariant__ = bool(covariant)
         self.__contravariant__ = bool(contravariant)
-        if bound:
-            self.__bound__ = _type_check(bound, "Bound must be a type.")
-        else:
-            self.__bound__ = None
+        self.__bound__ = _type_check(bound, "Bound must be a type.") if bound else None
 
     def __or__(self, right):
         return Union[self, right]
@@ -1016,18 +1012,12 @@ class _GenericAlias(_BaseGenericAlias, _root=True):
         return self.__class__(self.__origin__, params, name=self._name, inst=self._inst)
 
     def __repr__(self):
-        if self._name:
-            name = 'typing.' + self._name
-        else:
-            name = _type_repr(self.__origin__)
-        args = ", ".join([_type_repr(a) for a in self.__args__])
+        name = 'typing.' + self._name if self._name else _type_repr(self.__origin__)
+        args = ", ".join(_type_repr(a) for a in self.__args__)
         return f'{name}[{args}]'
 
     def __reduce__(self):
-        if self._name:
-            origin = globals()[self._name]
-        else:
-            origin = self.__origin__
+        origin = globals()[self._name] if self._name else self.__origin__
         args = tuple(self.__args__)
         if len(args) == 1 and not isinstance(args[0], tuple):
             args, = args
@@ -1125,10 +1115,7 @@ class _CallableType(_SpecialGenericAlias, _root=True):
         # This relaxes what args can be on purpose to allow things like
         # PEP 612 ParamSpec.  Responsibility for whether a user is using
         # Callable[...] properly is deferred to static type checkers.
-        if isinstance(args, list):
-            params = (tuple(args), result)
-        else:
-            params = (args, result)
+        params = (tuple(args), result) if isinstance(args, list) else (args, result)
         return self.__getitem_inner__(params)
 
     @_tp_cache
@@ -1374,13 +1361,16 @@ class _ProtocolMeta(ABCMeta):
                 _is_callable_members_only(cls)) and
                 issubclass(instance.__class__, cls)):
             return True
-        if cls._is_protocol:
-            if all(hasattr(instance, attr) and
-                    # All *methods* can be blocked by setting them to None.
-                    (not callable(getattr(cls, attr, None)) or
-                     getattr(instance, attr) is not None)
-                    for attr in _get_protocol_attrs(cls)):
-                return True
+        if cls._is_protocol and all(
+            hasattr(instance, attr) and
+            # All *methods* can be blocked by setting them to None.
+            (
+                not callable(getattr(cls, attr, None))
+                or getattr(instance, attr) is not None
+            )
+            for attr in _get_protocol_attrs(cls)
+        ):
+            return True
         return super().__instancecheck__(instance)
 
 
@@ -1799,9 +1789,11 @@ def get_args(tp):
         return (tp.__origin__,) + tp.__metadata__
     if isinstance(tp, (_GenericAlias, GenericAlias)):
         res = tp.__args__
-        if (tp.__origin__ is collections.abc.Callable
-                and not (res[0] is Ellipsis
-                         or isinstance(res[0], (ParamSpec, _ConcatenateGenericAlias)))):
+        if (
+            tp.__origin__ is collections.abc.Callable
+            and res[0] is not Ellipsis
+            and not isinstance(res[0], (ParamSpec, _ConcatenateGenericAlias))
+        ):
             res = (list(res[:-1]), res[-1])
         return res
     if isinstance(tp, types.Union):

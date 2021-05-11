@@ -498,8 +498,7 @@ class SSLContext(_SSLContext):
                 stacklevel=2
             )
             protocol = PROTOCOL_TLS
-        self = _SSLContext.__new__(cls, protocol)
-        return self
+        return _SSLContext.__new__(cls, protocol)
 
     def _encode_hostname(self, hostname):
         if hostname is None:
@@ -576,9 +575,10 @@ class SSLContext(_SSLContext):
         try:
             for cert, encoding, trust in enum_certificates(storename):
                 # CA certs are never PKCS#7 encoded
-                if encoding == "x509_asn":
-                    if trust is True or purpose.oid in trust:
-                        certs.extend(cert)
+                if encoding == "x509_asn" and (
+                    trust is True or purpose.oid in trust
+                ):
+                    certs.extend(cert)
         except PermissionError:
             warnings.warn("unable to enumerate Windows certificate store")
         if certs:
@@ -913,10 +913,9 @@ class SSLObject:
         bytes read.
         """
         if buffer is not None:
-            v = self._sslobj.read(len, buffer)
+            return self._sslobj.read(len, buffer)
         else:
-            v = self._sslobj.read(len)
-        return v
+            return self._sslobj.read(len)
 
     def write(self, data):
         """Write 'data' to the SSL object and return the number of bytes
@@ -1195,14 +1194,14 @@ class SSLSocket(socket):
 
     def send(self, data, flags=0):
         self._checkClosed()
-        if self._sslobj is not None:
-            if flags != 0:
-                raise ValueError(
-                    "non-zero flags not allowed in calls to send() on %s" %
-                    self.__class__)
-            return self._sslobj.write(data)
-        else:
+        if self._sslobj is None:
             return super().send(data, flags)
+
+        if flags != 0:
+            raise ValueError(
+                "non-zero flags not allowed in calls to send() on %s" %
+                self.__class__)
+        return self._sslobj.write(data)
 
     def sendto(self, data, flags_or_addr, addr=None):
         self._checkClosed()
@@ -1222,19 +1221,19 @@ class SSLSocket(socket):
 
     def sendall(self, data, flags=0):
         self._checkClosed()
-        if self._sslobj is not None:
-            if flags != 0:
-                raise ValueError(
-                    "non-zero flags not allowed in calls to sendall() on %s" %
-                    self.__class__)
-            count = 0
-            with memoryview(data) as view, view.cast("B") as byte_view:
-                amount = len(byte_view)
-                while count < amount:
-                    v = self.send(byte_view[count:])
-                    count += v
-        else:
+        if self._sslobj is None:
             return super().sendall(data, flags)
+
+        if flags != 0:
+            raise ValueError(
+                "non-zero flags not allowed in calls to sendall() on %s" %
+                self.__class__)
+        with memoryview(data) as view, view.cast("B") as byte_view:
+            amount = len(byte_view)
+            count = 0
+            while count < amount:
+                v = self.send(byte_view[count:])
+                count += v
 
     def sendfile(self, file, offset=0, count=None):
         """Send a file, possibly by using os.sendfile() if this is a
@@ -1248,14 +1247,14 @@ class SSLSocket(socket):
 
     def recv(self, buflen=1024, flags=0):
         self._checkClosed()
-        if self._sslobj is not None:
-            if flags != 0:
-                raise ValueError(
-                    "non-zero flags not allowed in calls to recv() on %s" %
-                    self.__class__)
-            return self.read(buflen)
-        else:
+        if self._sslobj is None:
             return super().recv(buflen, flags)
+
+        if flags != 0:
+            raise ValueError(
+                "non-zero flags not allowed in calls to recv() on %s" %
+                self.__class__)
+        return self.read(buflen)
 
     def recv_into(self, buffer, nbytes=None, flags=0):
         self._checkClosed()
@@ -1263,14 +1262,14 @@ class SSLSocket(socket):
             nbytes = len(buffer)
         elif nbytes is None:
             nbytes = 1024
-        if self._sslobj is not None:
-            if flags != 0:
-                raise ValueError(
-                  "non-zero flags not allowed in calls to recv_into() on %s" %
-                  self.__class__)
-            return self.read(nbytes, buffer)
-        else:
+        if self._sslobj is None:
             return super().recv_into(buffer, nbytes, flags)
+
+        if flags != 0:
+            raise ValueError(
+              "non-zero flags not allowed in calls to recv_into() on %s" %
+              self.__class__)
+        return self.read(nbytes, buffer)
 
     def recvfrom(self, buflen=1024, flags=0):
         self._checkClosed()
@@ -1311,12 +1310,12 @@ class SSLSocket(socket):
 
     @_sslcopydoc
     def unwrap(self):
-        if self._sslobj:
-            s = self._sslobj.shutdown()
-            self._sslobj = None
-            return s
-        else:
+        if not self._sslobj:
             raise ValueError("No SSL wrapper around " + str(self))
+
+        s = self._sslobj.shutdown()
+        self._sslobj = None
+        return s
 
     @_sslcopydoc
     def verify_client_post_handshake(self):
@@ -1392,12 +1391,11 @@ class SSLSocket(socket):
     def get_channel_binding(self, cb_type="tls-unique"):
         if self._sslobj is not None:
             return self._sslobj.get_channel_binding(cb_type)
-        else:
-            if cb_type not in CHANNEL_BINDING_TYPES:
-                raise ValueError(
-                    "{0} channel binding type not implemented".format(cb_type)
-                )
-            return None
+        if cb_type not in CHANNEL_BINDING_TYPES:
+            raise ValueError(
+                "{0} channel binding type not implemented".format(cb_type)
+            )
+        return None
 
     @_sslcopydoc
     def version(self):
@@ -1510,10 +1508,7 @@ def get_server_certificate(addr, ssl_version=PROTOCOL_TLS_CLIENT,
     """
 
     host, port = addr
-    if ca_certs is not None:
-        cert_reqs = CERT_REQUIRED
-    else:
-        cert_reqs = CERT_NONE
+    cert_reqs = CERT_REQUIRED if ca_certs is not None else CERT_NONE
     context = _create_stdlib_context(ssl_version,
                                      cert_reqs=cert_reqs,
                                      cafile=ca_certs)

@@ -158,10 +158,9 @@ def format_exception_only(exc, /, value=_sentinel):
 def _format_final_exc_line(etype, value):
     valuestr = _some_str(value)
     if value is None or not valuestr:
-        line = "%s\n" % etype
+        return "%s\n" % etype
     else:
-        line = "%s: %s\n" % (etype, valuestr)
-    return line
+        return "%s: %s\n" % (etype, valuestr)
 
 def _some_str(value):
     try:
@@ -365,10 +364,7 @@ class StackSummary(list):
             fnames.add(filename)
             linecache.lazycache(filename, f.f_globals)
             # Must defer line lookups until we have called checkcache.
-            if capture_locals:
-                f_locals = f.f_locals
-            else:
-                f_locals = None
+            f_locals = f.f_locals if capture_locals else None
             result.append(FrameSummary(
                 filename, lineno, name, lookup_line=False, locals=f_locals))
         for filename in fnames:
@@ -432,9 +428,12 @@ class StackSummary(list):
             count += 1
             if count > _RECURSIVE_CUTOFF:
                 continue
-            row = []
-            row.append('  File "{}", line {}, in {}\n'.format(
-                frame.filename, frame.lineno, frame.name))
+            row = [
+                '  File "{}", line {}, in {}\n'.format(
+                    frame.filename, frame.lineno, frame.name
+                )
+            ]
+
             if frame.line:
                 row.append('    {}\n'.format(frame.line.strip()))
             if frame.locals:

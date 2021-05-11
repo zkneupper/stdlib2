@@ -187,7 +187,7 @@ def addpackage(sitedir, name, known_paths):
                     continue
                 line = line.rstrip()
                 dir, dircase = makepath(sitedir, line)
-                if not dircase in known_paths and os.path.exists(dir):
+                if dircase not in known_paths and os.path.exists(dir):
                     sys.path.append(dir)
                     known_paths.add(dircase)
             except Exception:
@@ -214,7 +214,7 @@ def addsitedir(sitedir, known_paths=None):
     else:
         reset = False
     sitedir, sitedircase = makepath(sitedir)
-    if not sitedircase in known_paths:
+    if sitedircase not in known_paths:
         sys.path.append(sitedir)        # Add path component
         known_paths.add(sitedircase)
     try:
@@ -395,11 +395,7 @@ def setquit():
     The repr of each object contains a hint at how it works.
 
     """
-    if os.sep == '\\':
-        eof = 'Ctrl-Z plus Return'
-    else:
-        eof = 'Ctrl-D (i.e. EOF)'
-
+    eof = 'Ctrl-Z plus Return' if os.sep == '\\' else 'Ctrl-D (i.e. EOF)'
     builtins.quit = _sitebuiltins.Quitter('quit', eof)
     builtins.exit = _sitebuiltins.Quitter('exit', eof)
 
@@ -548,9 +544,7 @@ def execsitecustomize():
         try:
             import sitecustomize
         except ImportError as exc:
-            if exc.name == 'sitecustomize':
-                pass
-            else:
+            if exc.name != 'sitecustomize':
                 raise
     except Exception as err:
         if sys.flags.verbose:
@@ -568,9 +562,7 @@ def execusercustomize():
         try:
             import usercustomize
         except ImportError as exc:
-            if exc.name == 'usercustomize':
-                pass
-            else:
+            if exc.name != 'usercustomize':
                 raise
     except Exception as err:
         if sys.flags.verbose:

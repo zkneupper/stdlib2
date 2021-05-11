@@ -51,8 +51,7 @@ SndHeaders.sampwidth.__doc__ = ("""Either the sample size in bits or
 
 def what(filename):
     """Guess the type of a sound file."""
-    res = whathdr(filename)
-    return res
+    return whathdr(filename)
 
 
 def whathdr(filename):
@@ -117,10 +116,7 @@ def test_au(h, f):
     else:
         sample_bits = '?'
     frame_size = sample_size * nchannels
-    if frame_size:
-        nframe = data_size / frame_size
-    else:
-        nframe = -1
+    nframe = data_size / frame_size if frame_size else -1
     return filetype, rate, nchannels, nframe, sample_bits
 
 tests.append(test_au)
@@ -130,10 +126,7 @@ def test_hcom(h, f):
     if h[65:69] != b'FSSD' or h[128:132] != b'HCOM':
         return None
     divisor = get_long_be(h[144:148])
-    if divisor:
-        rate = 22050 / divisor
-    else:
-        rate = 0
+    rate = 22050 / divisor if divisor else 0
     return 'hcom', rate, 1, -1, 8
 
 tests.append(test_hcom)

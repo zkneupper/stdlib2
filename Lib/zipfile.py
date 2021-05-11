@@ -536,7 +536,7 @@ class ZipInfo (object):
 
 _crctable = None
 def _gen_crc(crc):
-    for j in range(8):
+    for _ in range(8):
         if crc & 1:
             crc = (crc >> 1) ^ 0xEDB88320
         else:
@@ -1057,11 +1057,9 @@ class ZipExtFile(io.BufferedIOBase):
             raise ValueError("whence must be os.SEEK_SET (0), "
                              "os.SEEK_CUR (1), or os.SEEK_END (2)")
 
-        if new_pos > self._orig_file_size:
-            new_pos = self._orig_file_size
+        new_pos = min(new_pos, self._orig_file_size)
 
-        if new_pos < 0:
-            new_pos = 0
+        new_pos = max(new_pos, 0)
 
         read_offset = new_pos - curr_pos
         buff_offset = read_offset + self._offset
@@ -1096,8 +1094,7 @@ class ZipExtFile(io.BufferedIOBase):
             raise ValueError("tell on closed file.")
         if not self._seekable:
             raise io.UnsupportedOperation("underlying stream is not seekable")
-        filepos = self._orig_file_size - self._left - len(self._readbuffer) + self._offset
-        return filepos
+        return self._orig_file_size - self._left - len(self._readbuffer) + self._offset
 
 
 class _ZipWriteFile(io.BufferedIOBase):
@@ -1436,10 +1433,7 @@ class ZipFile:
         """Set default password for encrypted files."""
         if pwd and not isinstance(pwd, bytes):
             raise TypeError("pwd: expected bytes, got %s" % type(pwd).__name__)
-        if pwd:
-            self.pwd = pwd
-        else:
-            self.pwd = None
+        self.pwd = pwd or None
 
     @property
     def comment(self):
@@ -1609,11 +1603,7 @@ class ZipFile:
            as possible. `member' may be a filename or a ZipInfo object. You can
            specify a different directory using `path'.
         """
-        if path is None:
-            path = os.getcwd()
-        else:
-            path = os.fspath(path)
-
+        path = os.getcwd() if path is None else os.fspath(path)
         return self._extract_member(member, path, pwd)
 
     def extractall(self, path=None, members=None, pwd=None):
@@ -1625,11 +1615,7 @@ class ZipFile:
         if members is None:
             members = self.namelist()
 
-        if path is None:
-            path = os.getcwd()
-        else:
-            path = os.fspath(path)
-
+        path = os.getcwd() if path is None else os.fspath(path)
         for zipinfo in members:
             self._extract_member(zipinfo, path, pwd)
 
@@ -1964,10 +1950,7 @@ class PyZipFile(ZipFile):
             initname = os.path.join(pathname, "__init__.py")
             if os.path.isfile(initname):
                 # This is a package directory, add it
-                if basename:
-                    basename = "%s/%s" % (basename, name)
-                else:
-                    basename = name
+                basename = "%s/%s" % (basename, name) if basename else name
                 if self.debug:
                     print("Adding package in", pathname, "as", basename)
                 fname, arcname = self._get_codename(initname[0:-3], basename)

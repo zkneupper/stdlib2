@@ -276,13 +276,13 @@ class WeakValueDictionary(_collections_abc.MutableMapping):
             o = self.data[key]()
         except KeyError:
             o = None
-        if o is None:
-            if self._pending_removals:
-                self._commit_removals()
-            self.data[key] = KeyedRef(default, self._remove, key)
-            return default
-        else:
+        if o is not None:
             return o
+
+        if self._pending_removals:
+            self._commit_removals()
+        self.data[key] = KeyedRef(default, self._remove, key)
+        return default
 
     def update(self, other=None, /, **kwargs):
         if self._pending_removals:

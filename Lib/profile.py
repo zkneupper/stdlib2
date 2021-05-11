@@ -362,10 +362,7 @@ class Profile:
 
     def simulate_call(self, name):
         code = self.fake_code('profile', 0, name)
-        if self.cur:
-            pframe = self.cur[-2]
-        else:
-            pframe = None
+        pframe = self.cur[-2] if self.cur else None
         frame = self.fake_frame(code, pframe)
         self.dispatch['call'](self, frame, 0)
 
@@ -401,9 +398,7 @@ class Profile:
         self.stats = {}
         for func, (cc, ns, tt, ct, callers) in self.timings.items():
             callers = callers.copy()
-            nc = 0
-            for callcnt in callers.values():
-                nc += callcnt
+            nc = sum(callers.values())
             self.stats[func] = cc, nc, tt, ct, callers
 
 
@@ -495,11 +490,10 @@ class Profile:
         # one return event, per Python-level call).
 
         def f1(n):
-            for i in range(n):
-                x = 1
+            x = 1
 
         def f(m, f1=f1):
-            for i in range(m):
+            for _ in range(m):
                 f1(100)
 
         f(m)    # warm up the cache

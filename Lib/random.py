@@ -662,12 +662,7 @@ class Random(_random.Random):
         q = 1.0 / r
         f = (q + z) / (1.0 + q * z)
         u3 = random()
-        if u3 > 0.5:
-            theta = (mu + _acos(f)) % TWOPI
-        else:
-            theta = (mu - _acos(f)) % TWOPI
-
-        return theta
+        return (mu + _acos(f)) % TWOPI if u3 > 0.5 else (mu - _acos(f)) % TWOPI
 
     def gammavariate(self, alpha, beta):
         """Gamma distribution.  Not the gamma function!
@@ -722,15 +717,14 @@ class Random(_random.Random):
                 u = random()
                 b = (_e + alpha) / _e
                 p = b * u
-                if p <= 1.0:
-                    x = p ** (1.0 / alpha)
-                else:
-                    x = -_log((b - p) / alpha)
+                x = p ** (1.0 / alpha) if p <= 1.0 else -_log((b - p) / alpha)
                 u1 = random()
-                if p > 1.0:
-                    if u1 <= x ** (alpha - 1.0):
-                        break
-                elif u1 <= _exp(-x):
+                if (
+                    p > 1.0
+                    and u1 <= x ** (alpha - 1.0)
+                    or p <= 1.0
+                    and u1 <= _exp(-x)
+                ):
                     break
             return x * beta
 

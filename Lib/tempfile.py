@@ -23,6 +23,7 @@ This module also provides some data items to the user:
              another candidate location to store temporary files.
 """
 
+
 __all__ = [
     "NamedTemporaryFile", "TemporaryFile", # high level safe interfaces
     "SpooledTemporaryFile", "TemporaryDirectory",
@@ -57,11 +58,7 @@ _bin_openflags = _text_openflags
 if hasattr(_os, 'O_BINARY'):
     _bin_openflags |= _os.O_BINARY
 
-if hasattr(_os, 'TMP_MAX'):
-    TMP_MAX = _os.TMP_MAX
-else:
-    TMP_MAX = 10000
-
+TMP_MAX = _os.TMP_MAX if hasattr(_os, 'TMP_MAX') else 10000
 # This variable _was_ unused for legacy reasons, see issue 10354.
 # But as of 3.5 we actually use it at runtime so changing it would
 # have a possibly desirable side effect...  But we do not want to support
@@ -113,15 +110,9 @@ def _sanitize_params(prefix, suffix, dir):
     if suffix is None:
         suffix = output_type()
     if prefix is None:
-        if output_type is str:
-            prefix = template
-        else:
-            prefix = _os.fsencode(template)
+        prefix = template if output_type is str else _os.fsencode(template)
     if dir is None:
-        if output_type is str:
-            dir = gettempdir()
-        else:
-            dir = gettempdirb()
+        dir = gettempdir() if output_type is str else gettempdirb()
     return prefix, suffix, dir, output_type
 
 
@@ -192,7 +183,7 @@ def _get_default_tempdir():
         if dir != _os.curdir:
             dir = _os.path.abspath(dir)
         # Try only a few names per directory.
-        for seq in range(100):
+        for _ in range(100):
             name = next(namer)
             filename = _os.path.join(dir, name)
             try:
@@ -244,7 +235,7 @@ def _mkstemp_inner(dir, pre, suf, flags, output_type):
     if output_type is bytes:
         names = map(_os.fsencode, names)
 
-    for seq in range(TMP_MAX):
+    for _ in range(TMP_MAX):
         name = next(names)
         file = _os.path.join(dir, pre + name + suf)
         _sys.audit("tempfile.mkstemp", file)
@@ -329,11 +320,7 @@ def mkstemp(suffix=None, prefix=None, dir=None, text=False):
 
     prefix, suffix, dir, output_type = _sanitize_params(prefix, suffix, dir)
 
-    if text:
-        flags = _text_openflags
-    else:
-        flags = _bin_openflags
-
+    flags = _text_openflags if text else _bin_openflags
     return _mkstemp_inner(dir, prefix, suffix, flags, output_type)
 
 
@@ -356,7 +343,7 @@ def mkdtemp(suffix=None, prefix=None, dir=None):
     if output_type is bytes:
         names = map(_os.fsencode, names)
 
-    for seq in range(TMP_MAX):
+    for _ in range(TMP_MAX):
         name = next(names)
         file = _os.path.join(dir, prefix + name + suffix)
         _sys.audit("tempfile.mkdtemp", file)
@@ -390,7 +377,6 @@ def mktemp(suffix="", prefix=template, dir=None):
     you get around to creating it, someone else may have beaten you to
     the punch.
     """
-
 ##    from warnings import warn as _warn
 ##    _warn("mktemp is a potential security risk to your program",
 ##          RuntimeWarning, stacklevel=2)
@@ -399,7 +385,7 @@ def mktemp(suffix="", prefix=template, dir=None):
         dir = gettempdir()
 
     names = _get_candidate_names()
-    for seq in range(TMP_MAX):
+    for _ in range(TMP_MAX):
         name = next(names)
         file = _os.path.join(dir, prefix + name + suffix)
         if not _exists(file):
@@ -511,8 +497,7 @@ class _TemporaryFileWrapper:
         # can't use 'yield from' here because iter(file) returns the file
         # object itself, which has a close method, and thus the file would get
         # closed when the generator is finalized, due to PEP380 semantics.
-        for line in self.file:
-            yield line
+        yield from self.file
 
 
 def NamedTemporaryFile(mode='w+b', buffering=-1, encoding=None,

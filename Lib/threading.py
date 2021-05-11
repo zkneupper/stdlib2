@@ -315,16 +315,11 @@ class Condition:
         self._waiters.append(waiter)
         saved_state = self._release_save()
         gotit = False
-        try:    # restore state no matter what (e.g., KeyboardInterrupt)
-            if timeout is None:
-                waiter.acquire()
-                gotit = True
-            else:
-                if timeout > 0:
-                    gotit = waiter.acquire(True, timeout)
-                else:
-                    gotit = waiter.acquire(False)
-            return gotit
+        try:# restore state no matter what (e.g., KeyboardInterrupt)
+            if timeout is not None:
+                return waiter.acquire(True, timeout) if timeout > 0 else waiter.acquire(False)
+            waiter.acquire()
+            return True
         finally:
             self._acquire_restore(saved_state)
             if not gotit:
@@ -476,7 +471,7 @@ class Semaphore:
             raise ValueError('n must be one or more')
         with self._cond:
             self._value += n
-            for i in range(n):
+            for _ in range(n):
                 self._cond.notify()
 
     def __exit__(self, t, v, tb):
@@ -520,7 +515,7 @@ class BoundedSemaphore(Semaphore):
             if self._value + n > self._initial_value:
                 raise ValueError("Semaphore released too many times")
             self._value += n
-            for i in range(n):
+            for _ in range(n):
                 self._cond.notify()
 
 
@@ -704,11 +699,10 @@ class Barrier:
     # If we are the last thread to exit the barrier, signal any threads
     # waiting for the barrier to drain.
     def _exit(self):
-        if self._count == 0:
-            if self._state in (-1, 1):
-                #resetting or draining
-                self._state = 0
-                self._cond.notify_all()
+        if self._count == 0 and self._state in (-1, 1):
+            #resetting or draining
+            self._state = 0
+            self._cond.notify_all()
 
     def reset(self):
         """Reset the barrier to the initial state.
@@ -840,10 +834,7 @@ class Thread:
         self._name = name
         self._args = args
         self._kwargs = kwargs
-        if daemon is not None:
-            self._daemonic = daemon
-        else:
-            self._daemonic = current_thread().daemon
+        self._daemonic = daemon if daemon is not None else current_thread().daemon
         self._ident = None
         if _HAVE_THREAD_NATIVE_ID:
             self._native_id = None
@@ -1549,9 +1540,6 @@ def _after_fork():
     global _shutdown_locks_lock, _shutdown_locks
     _active_limbo_lock = _allocate_lock()
 
-    # fork() only copied the current thread; clear references to others.
-    new_active = {}
-
     try:
         current = _active[get_ident()]
     except KeyError:
@@ -1571,6 +1559,9 @@ def _after_fork():
         # because someone may join() them.
         threads = set(_enumerate())
         threads.update(_dangling)
+        # fork() only copied the current thread; clear references to others.
+        new_active = {}
+
         for thread in threads:
             # Any lock/condition variable may be currently locked or in an
             # invalid state, so we reinitialize them.

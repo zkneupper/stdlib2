@@ -89,14 +89,16 @@ def _compile(code, pattern, flags):
             tolower = _sre.ascii_tolower
     for op, av in pattern:
         if op in LITERAL_CODES:
-            if not flags & SRE_FLAG_IGNORECASE:
+            if (
+                not flags & SRE_FLAG_IGNORECASE
+                or flags & SRE_FLAG_IGNORECASE
+                and not flags & SRE_FLAG_LOCALE
+                and not iscased(av)
+            ):
                 emit(op)
                 emit(av)
             elif flags & SRE_FLAG_LOCALE:
                 emit(OP_LOCALE_IGNORE[op])
-                emit(av)
-            elif not iscased(av):
-                emit(op)
                 emit(av)
             else:
                 lo = tolower(av)
@@ -538,8 +540,7 @@ def _compile_info(code, pattern, flags):
     # this contains min/max pattern width, and an optional literal
     # prefix or a character map
     lo, hi = pattern.getwidth()
-    if hi > MAXCODE:
-        hi = MAXCODE
+    hi = min(hi, MAXCODE)
     if lo == 0:
         code.extend([INFO, 4, 0, lo, hi])
         return
@@ -560,7 +561,8 @@ def _compile_info(code, pattern, flags):
     # add an info block
     emit = code.append
     emit(INFO)
-    skip = len(code); emit(0)
+    skip = len(code)
+    emit(0)
     # literal flag
     mask = 0
     if prefix:

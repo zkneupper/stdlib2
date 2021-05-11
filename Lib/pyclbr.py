@@ -103,11 +103,11 @@ def readmodule(module, path=None):
     This is the original interface, before Functions were added.
     """
 
-    res = {}
-    for key, value in _readmodule(module, path or []).items():
-        if isinstance(value, Class):
-            res[key] = value
-    return res
+    return {
+        key: value
+        for key, value in _readmodule(module, path or []).items()
+        if isinstance(value, Class)
+    }
 
 def readmodule_ex(module, path=None):
     """Return a dictionary with all functions and classes in module.
@@ -128,11 +128,7 @@ def _readmodule(module, path, inpackage=None):
     module, and path is combined with sys.path.
     """
     # Compute the full module name (prepending inpackage if set).
-    if inpackage is not None:
-        fullmodule = "%s.%s" % (inpackage, module)
-    else:
-        fullmodule = module
-
+    fullmodule = "%s.%s" % (inpackage, module) if inpackage is not None else module
     # Check in the cache.
     if fullmodule in _modules:
         return _modules[fullmodule]
@@ -153,16 +149,13 @@ def _readmodule(module, path, inpackage=None):
         parent = _readmodule(package, path, inpackage)
         if inpackage is not None:
             package = "%s.%s" % (inpackage, package)
-        if not '__path__' in parent:
+        if '__path__' not in parent:
             raise ImportError('No package named {}'.format(package))
         return _readmodule(submodule, parent['__path__'], package)
 
     # Search the path for the module.
     f = None
-    if inpackage is not None:
-        search_path = path
-    else:
-        search_path = path + sys.path
+    search_path = path if inpackage is not None else path + sys.path
     spec = importlib.util._find_spec_from_path(fullmodule, search_path)
     if spec is None:
         raise ModuleNotFoundError(f"no module named {fullmodule!r}", name=fullmodule)

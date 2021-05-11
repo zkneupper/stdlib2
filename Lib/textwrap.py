@@ -207,11 +207,7 @@ class TextWrapper:
         """
         # Figure out when indent is larger than the specified width, and make
         # sure at least one character is stripped off on every pass
-        if width < 1:
-            space_left = 1
-        else:
-            space_left = width - cur_len
-
+        space_left = 1 if width < 1 else width - cur_len
         # If we're allowed to break long words, then do so: put as much
         # of the next chunk onto the current line as will fit.
         if self.break_long_words:
