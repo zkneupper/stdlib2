@@ -131,26 +131,32 @@ def decode(input, output, header=False):
         if not line: break
         i, n = 0, len(line)
         if n > 0 and line[n-1:n] == b'\n':
-            partial = 0; n = n-1
+            partial = 0
+            n -= 1
             # Strip trailing whitespace
             while n > 0 and line[n-1:n] in b" \t\r":
-                n = n-1
+                n -= 1
         else:
             partial = 1
         while i < n:
             c = line[i:i+1]
             if c == b'_' and header:
-                new = new + b' '; i = i+1
+                new += b' '
+                i += 1
             elif c != ESCAPE:
-                new = new + c; i = i+1
+                new += c
+                i += 1
             elif i+1 == n and not partial:
                 partial = 1; break
             elif i+1 < n and line[i+1:i+2] == ESCAPE:
-                new = new + ESCAPE; i = i+2
+                new += ESCAPE
+                i += 2
             elif i+2 < n and ishex(line[i+1:i+2]) and ishex(line[i+2:i+3]):
-                new = new + bytes((unhex(line[i+1:i+3]),)); i = i+3
+                new += bytes((unhex(line[i+1:i+3]),))
+                i += 3
             else: # Bad escape sequence -- leave it in
-                new = new + c; i = i+1
+                new += c
+                i += 1
         if not partial:
             output.write(new + b'\n')
             new = b''
@@ -207,8 +213,10 @@ def main():
     deco = False
     tabs = False
     for o, a in opts:
-        if o == '-t': tabs = True
-        if o == '-d': deco = True
+        if o == '-d':
+            deco = True
+        elif o == '-t':
+            tabs = True
     if tabs and deco:
         sys.stdout = sys.stderr
         print("-t and -d are mutually exclusive")

@@ -159,10 +159,10 @@ if "_PYTHON_PROJECT_BASE" in os.environ:
     _PROJECT_BASE = _safe_realpath(os.environ["_PYTHON_PROJECT_BASE"])
 
 def _is_python_source_dir(d):
-    for fn in ("Setup", "Setup.local"):
-        if os.path.isfile(os.path.join(d, "Modules", fn)):
-            return True
-    return False
+    return any(
+        os.path.isfile(os.path.join(d, "Modules", fn))
+        for fn in ("Setup", "Setup.local")
+    )
 
 _sys_home = getattr(sys, '_home', None)
 
@@ -297,7 +297,7 @@ def _parse_makefile(filename, vars=None, keep_unresolved=True):
     # if the expansion uses the name without a prefix.
     renamed_variables = ('CFLAGS', 'LDFLAGS', 'CPPFLAGS')
 
-    while len(variables) > 0:
+    while variables:
         for name in tuple(variables):
             value = notdone[name]
             m1 = re.search(_findvar1_rx, value)
@@ -305,7 +305,7 @@ def _parse_makefile(filename, vars=None, keep_unresolved=True):
             if m1 and m2:
                 m = m1 if m1.start() < m2.start() else m2
             else:
-                m = m1 if m1 else m2
+                m = m1 or m2
             if m is not None:
                 n = m.group(1)
                 found = True

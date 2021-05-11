@@ -168,24 +168,23 @@ class zipimporter(_bootstrap_external._LoaderBasics):
         module_info = _get_module_info(self, fullname)
         if module_info is not None:
             return _bootstrap.spec_from_loader(fullname, self, is_package=module_info)
-        else:
-            # Not a module or regular package. See if this is a directory, and
-            # therefore possibly a portion of a namespace package.
+        # Not a module or regular package. See if this is a directory, and
+        # therefore possibly a portion of a namespace package.
 
-            # We're only interested in the last path component of fullname
-            # earlier components are recorded in self.prefix.
-            modpath = _get_module_path(self, fullname)
-            if _is_dir(self, modpath):
-                # This is possibly a portion of a namespace
-                # package. Return the string representing its path,
-                # without a trailing separator.
-                path = f'{self.archive}{path_sep}{modpath}'
-                spec = _bootstrap.ModuleSpec(name=fullname, loader=None,
-                                             is_package=True)
-                spec.submodule_search_locations.append(path)
-                return spec
-            else:
-                return None
+        # We're only interested in the last path component of fullname
+        # earlier components are recorded in self.prefix.
+        modpath = _get_module_path(self, fullname)
+        if _is_dir(self, modpath):
+            # This is possibly a portion of a namespace
+            # package. Return the string representing its path,
+            # without a trailing separator.
+            path = f'{self.archive}{path_sep}{modpath}'
+            spec = _bootstrap.ModuleSpec(name=fullname, loader=None,
+                                         is_package=True)
+            spec.submodule_search_locations.append(path)
+            return spec
+        else:
+            return None
 
     def get_code(self, fullname):
         """get_code(fullname) -> code object.

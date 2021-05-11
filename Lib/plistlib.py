@@ -374,11 +374,7 @@ class _PlistWriter(_DumbXMLWriter):
     def write_dict(self, d):
         if d:
             self.begin_element("dict")
-            if self._sort_keys:
-                items = sorted(d.items())
-            else:
-                items = d.items()
-
+            items = sorted(d.items()) if self._sort_keys else d.items()
             for key, value in items:
                 if not isinstance(key, str):
                     if self._skipkeys:
@@ -493,11 +489,10 @@ class _BinaryPlistParser:
         data = self._fp.read(size * n)
         if size in _BINARY_FORMAT:
             return struct.unpack(f'>{n}{_BINARY_FORMAT[size]}', data)
-        else:
-            if not size or len(data) != size * n:
-                raise InvalidFileException()
-            return tuple(int.from_bytes(data[i: i + size], 'big')
-                         for i in range(0, size * n, size))
+        if not size or len(data) != size * n:
+            raise InvalidFileException()
+        return tuple(int.from_bytes(data[i: i + size], 'big')
+                     for i in range(0, size * n, size))
 
     def _read_refs(self, n):
         return self._read_ints(n, self._ref_size)
@@ -808,11 +803,7 @@ class _BinaryPlistWriter (object):
         elif isinstance(value, dict):
             keyRefs, valRefs = [], []
 
-            if self._sort_keys:
-                rootItems = sorted(value.items())
-            else:
-                rootItems = value.items()
-
+            rootItems = sorted(value.items()) if self._sort_keys else value.items()
             for k, v in rootItems:
                 if not isinstance(k, str):
                     if self._skipkeys:

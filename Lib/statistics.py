@@ -422,12 +422,11 @@ def harmonic_mean(data, weights=None):
         raise StatisticsError('harmonic_mean requires at least one data point')
     elif n == 1 and weights is None:
         x = data[0]
-        if isinstance(x, (numbers.Real, Decimal)):
-            if x < 0:
-                raise StatisticsError(errmsg)
-            return x
-        else:
+        if not isinstance(x, (numbers.Real, Decimal)):
             raise TypeError('unsupported type')
+        if x < 0:
+            raise StatisticsError(errmsg)
+        return x
     if weights is None:
         weights = repeat(1, n)
         sum_weights = n
@@ -436,7 +435,7 @@ def harmonic_mean(data, weights=None):
             weights = list(weights)
         if len(weights) != n:
             raise StatisticsError('Number of weights does not match data size')
-        _, sum_weights, _ = _sum(w for w in _fail_neg(weights, errmsg))
+        _, sum_weights, _ = _sum(iter(_fail_neg(weights, errmsg)))
     try:
         data = _fail_neg(data, errmsg)
         T, total, count = _sum(w / x if w else 0 for w, x in zip(weights, data))
@@ -466,9 +465,8 @@ def median(data):
         raise StatisticsError("no median for empty data")
     if n % 2 == 1:
         return data[n // 2]
-    else:
-        i = n // 2
-        return (data[i - 1] + data[i]) / 2
+    i = n // 2
+    return (data[i - 1] + data[i]) / 2
 
 
 def median_low(data):

@@ -90,9 +90,8 @@ def resolve_bases(bases):
         updated = True
         if not isinstance(new_base, tuple):
             raise TypeError("__mro_entries__ must return a tuple")
-        else:
-            new_bases[i+shift:i+shift+1] = new_base
-            shift += len(new_base) - 1
+        new_bases[i+shift:i+shift+1] = new_base
+        shift += len(new_base) - 1
     if not updated:
         return bases
     return tuple(new_bases)

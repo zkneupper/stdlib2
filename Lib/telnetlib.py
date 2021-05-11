@@ -489,7 +489,6 @@ class Telnet:
         except EOFError: # raised by self.rawq_getchar()
             self.iacseq = b'' # Reset on EOF
             self.sb = 0
-            pass
         self.cookedq = self.cookedq + buf[0]
         self.sbdataq = self.sbdataq + buf[1]
 
@@ -656,7 +655,7 @@ def test():
     """
     debuglevel = 0
     while sys.argv[1:] and sys.argv[1] == '-d':
-        debuglevel = debuglevel+1
+        debuglevel += 1
         del sys.argv[1]
     host = 'localhost'
     if sys.argv[1:]:

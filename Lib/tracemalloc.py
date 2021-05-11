@@ -236,10 +236,7 @@ class Traceback(Sequence):
     def format(self, limit=None, most_recent_first=False):
         lines = []
         if limit is not None:
-            if limit > 0:
-                frame_slice = self[-limit:]
-            else:
-                frame_slice = self[:limit]
+            frame_slice = self[-limit:] if limit > 0 else self[:limit]
         else:
             frame_slice = self
 
@@ -439,15 +436,13 @@ class Snapshot:
             return pickle.load(fp)
 
     def _filter_trace(self, include_filters, exclude_filters, trace):
-        if include_filters:
-            if not any(trace_filter._match(trace)
-                       for trace_filter in include_filters):
-                return False
-        if exclude_filters:
-            if any(not trace_filter._match(trace)
-                   for trace_filter in exclude_filters):
-                return False
-        return True
+        if include_filters and not any(
+            trace_filter._match(trace) for trace_filter in include_filters
+        ):
+            return False
+        return not exclude_filters or all(
+            trace_filter._match(trace) for trace_filter in exclude_filters
+        )
 
     def filter_traces(self, filters):
         """

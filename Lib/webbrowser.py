@@ -38,12 +38,8 @@ def get(using=None):
     """Return a browser launcher instance appropriate for the environment."""
     if _tryorder is None:
         with _lock:
-            if _tryorder is None:
-                register_standard_browsers()
-    if using is not None:
-        alternatives = [using]
-    else:
-        alternatives = _tryorder
+            register_standard_browsers()
+    alternatives = [using] if using is not None else _tryorder
     for browser in alternatives:
         if '%s' in browser:
             # User gave us a command line, split it into name and args
@@ -79,8 +75,7 @@ def open(url, new=0, autoraise=True):
     """
     if _tryorder is None:
         with _lock:
-            if _tryorder is None:
-                register_standard_browsers()
+            register_standard_browsers()
     for name in _tryorder:
         browser = get(name)
         if browser.open(url, new, autoraise):
@@ -247,24 +242,18 @@ class UnixBrowser(BaseBrowser):
             except subprocess.TimeoutExpired:
                 return True
         elif self.background:
-            if p.poll() is None:
-                return True
-            else:
-                return False
+            return p.poll() is None
         else:
             return not p.wait()
 
     def open(self, url, new=0, autoraise=True):
         sys.audit("webbrowser.open", url)
-        if new == 0:
-            action = self.remote_action
-        elif new == 1:
+        if new == 2 and self.remote_action_newtab is None or new == 1:
             action = self.remote_action_newwin
         elif new == 2:
-            if self.remote_action_newtab is None:
-                action = self.remote_action_newwin
-            else:
-                action = self.remote_action_newtab
+            action = self.remote_action_newtab
+        elif new == 0:
+            action = self.remote_action
         else:
             raise Error("Bad 'new' parameter to open(); " +
                         "expected 0, 1, or 2, got %s" % new)
@@ -358,11 +347,7 @@ class Konqueror(BaseBrowser):
     def open(self, url, new=0, autoraise=True):
         sys.audit("webbrowser.open", url)
         # XXX Currently I know no way to prevent KFM from opening a new win.
-        if new == 2:
-            action = "newTab"
-        else:
-            action = "openURL"
-
+        action = "newTab" if new == 2 else "openURL"
         devnull = subprocess.DEVNULL
 
         try:
@@ -441,11 +426,7 @@ class Grail(BaseBrowser):
 
     def open(self, url, new=0, autoraise=True):
         sys.audit("webbrowser.open", url)
-        if new:
-            ok = self._remote("LOADNEW " + url)
-        else:
-            ok = self._remote("LOAD " + url)
-        return ok
+        return self._remote("LOADNEW " + url) if new else self._remote("LOAD " + url)
 
 
 #

@@ -256,16 +256,15 @@ class Wave_read:
             wFormatTag, self._nchannels, self._framerate, dwAvgBytesPerSec, wBlockAlign = struct.unpack_from('<HHLLH', chunk.read(14))
         except struct.error:
             raise EOFError from None
-        if wFormatTag == WAVE_FORMAT_PCM:
-            try:
-                sampwidth = struct.unpack_from('<H', chunk.read(2))[0]
-            except struct.error:
-                raise EOFError from None
-            self._sampwidth = (sampwidth + 7) // 8
-            if not self._sampwidth:
-                raise Error('bad sample width')
-        else:
+        if wFormatTag != WAVE_FORMAT_PCM:
             raise Error('unknown format: %r' % (wFormatTag,))
+        try:
+            sampwidth = struct.unpack_from('<H', chunk.read(2))[0]
+        except struct.error:
+            raise EOFError from None
+        self._sampwidth = (sampwidth + 7) // 8
+        if not self._sampwidth:
+            raise Error('bad sample width')
         if not self._nchannels:
             raise Error('bad # of channels')
         self._framesize = self._nchannels * self._sampwidth
@@ -501,10 +500,7 @@ class Wave_write:
 
 def open(f, mode=None):
     if mode is None:
-        if hasattr(f, 'mode'):
-            mode = f.mode
-        else:
-            mode = 'rb'
+        mode = f.mode if hasattr(f, 'mode') else 'rb'
     if mode in ('r', 'rb'):
         return Wave_read(f)
     elif mode in ('w', 'wb'):

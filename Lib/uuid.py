@@ -207,9 +207,8 @@ class UUID:
             clock_seq = (clock_seq_hi_variant << 8) | clock_seq_low
             int = ((time_low << 96) | (time_mid << 80) |
                    (time_hi_version << 64) | (clock_seq << 48) | node)
-        if int is not None:
-            if not 0 <= int < 1<<128:
-                raise ValueError('int is out of range (need a 128-bit value)')
+        if int is not None and not 0 <= int < 1 << 128:
+            raise ValueError('int is out of range (need a 128-bit value)')
         if version is not None:
             if not 1 <= version <= 5:
                 raise ValueError('illegal version number')
@@ -456,7 +455,7 @@ def _parse_mac(word):
             return
         hexstr = b''.join(part.rjust(2, b'0') for part in parts)
     else:
-        if not all(len(part) == 2 for part in parts):
+        if any(len(part) != 2 for part in parts):
             return
         hexstr = b''.join(parts)
     try:

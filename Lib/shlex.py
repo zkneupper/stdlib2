@@ -29,10 +29,7 @@ class shlex:
             self.instream = sys.stdin
             self.infile = None
         self.posix = posix
-        if posix:
-            self.eof = None
-        else:
-            self.eof = ''
+        self.eof = None if posix else ''
         self.commenters = '#'
         self.wordchars = ('abcdfeghijklmnopqrstuvwxyz'
                           'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_')
@@ -119,9 +116,8 @@ class shlex:
         while raw == self.eof:
             if not self.filestack:
                 return self.eof
-            else:
-                self.pop_source()
-                raw = self.get_token()
+            self.pop_source()
+            raw = self.get_token()
         # Neither inclusion nor EOF
         if self.debug >= 1:
             if raw != self.eof:
@@ -232,7 +228,7 @@ class shlex:
                     self.lineno += 1
                     if self.posix:
                         self.state = ' '
-                        if self.token or (self.posix and quoted):
+                        if self.token or quoted:
                             break   # emit current token
                         else:
                             continue

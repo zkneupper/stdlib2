@@ -272,9 +272,5 @@ class Formatter:
         # loop through the rest of the field_name, doing
         #  getattr or getitem as needed
         for is_attr, i in rest:
-            if is_attr:
-                obj = getattr(obj, i)
-            else:
-                obj = obj[i]
-
+            obj = getattr(obj, i) if is_attr else obj[i]
         return obj, first

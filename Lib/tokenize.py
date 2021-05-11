@@ -442,7 +442,7 @@ def _tokenize(readline, encoding):
         yield TokenInfo(ENCODING, encoding, (0, 0), (0, 0), '')
     last_line = b''
     line = b''
-    while True:                                # loop over lines in stream
+    while True:                            # loop over lines in stream
         try:
             # We capture the value of the line variable here because
             # readline uses the empty string '' to signal end of input,
@@ -458,7 +458,7 @@ def _tokenize(readline, encoding):
         lnum += 1
         pos, max = 0, len(line)
 
-        if contstr:                            # continued string
+        if contstr:                    # continued string
             if not line:
                 raise TokenError("EOF in multi-line string", strstart)
             endmatch = endprog.match(line)
@@ -475,7 +475,7 @@ def _tokenize(readline, encoding):
                 contline = None
                 continue
             else:
-                contstr = contstr + line
+                contstr += line
                 contline = contline + line
                 continue
 
@@ -606,7 +606,7 @@ def _tokenize(readline, encoding):
     # Add an implicit NEWLINE if the input doesn't end in one
     if last_line and last_line[-1] not in '\r\n':
         yield TokenInfo(NEWLINE, '', (lnum - 1, len(last_line)), (lnum - 1, len(last_line) + 1), '')
-    for indent in indents[1:]:                 # pop remaining indent levels
+    for _ in indents[1:]:                 # pop remaining indent levels
         yield TokenInfo(DEDENT, '', (lnum, 0), (lnum, 0), '')
     yield TokenInfo(ENDMARKER, '', (lnum, 0), (lnum, 0), '')
 

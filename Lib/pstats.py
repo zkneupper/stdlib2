@@ -179,16 +179,12 @@ class Stats:
             for func in item.top_level:
                 self.top_level.add(func)
 
-            if self.max_name_len < item.max_name_len:
-                self.max_name_len = item.max_name_len
+            self.max_name_len = max(self.max_name_len, item.max_name_len)
 
             self.fcn_list = None
 
             for func, stat in item.stats.items():
-                if func in self.stats:
-                    old_func_stat = self.stats[func]
-                else:
-                    old_func_stat = (0, 0, 0, 0, {},)
+                old_func_stat = self.stats[func] if func in self.stats else (0, 0, 0, 0, {})
                 self.stats[func] = add_func_stats(old_func_stat, stat)
         return self
 
@@ -261,10 +257,10 @@ class Stats:
             self.sort_type += connector + sort_arg_defs[word][1]
             connector = ", "
 
-        stats_list = []
-        for func, (cc, nc, tt, ct, callers) in self.stats.items():
-            stats_list.append((cc, nc, tt, ct) + func +
-                              (func_std_string(func), func))
+        stats_list = [
+            (cc, nc, tt, ct) + func + (func_std_string(func), func)
+            for func, (cc, nc, tt, ct, callers) in self.stats.items()
+        ]
 
         stats_list.sort(key=cmp_to_key(TupleComp(sort_tuple).compare))
 
@@ -286,9 +282,9 @@ class Stats:
             newfunc = func_strip_path(func)
             if len(func_std_string(newfunc)) > max_name_len:
                 max_name_len = len(func_std_string(newfunc))
-            newcallers = {}
-            for func2, caller in callers.items():
-                newcallers[func_strip_path(func2)] = caller
+            newcallers = {
+                func_strip_path(func2): caller for func2, caller in callers.items()
+            }
 
             if newfunc in newstats:
                 newstats[newfunc] = add_func_stats(
@@ -312,10 +308,10 @@ class Stats:
             return
         self.all_callees = all_callees = {}
         for func, (cc, nc, tt, ct, callers) in self.stats.items():
-            if not func in all_callees:
+            if func not in all_callees:
                 all_callees[func] = {}
             for func2, caller in callers.items():
-                if not func2 in all_callees:
+                if func2 not in all_callees:
                     all_callees[func2] = {}
                 all_callees[func2][func]  = caller
         return
@@ -334,10 +330,7 @@ class Stats:
             except re.error:
                 msg += "   <Invalid regular expression %r>\n" % sel
                 return new_list, msg
-            new_list = []
-            for func in list:
-                if rex.search(func_std_string(func)):
-                    new_list.append(func)
+            new_list = [func for func in list if rex.search(func_std_string(func))]
         else:
             count = len(list)
             if isinstance(sel, float) and 0.0 <= sel < 1.0:
@@ -484,10 +477,7 @@ class Stats:
             value = call_dict[func]
             if isinstance(value, tuple):
                 nc, cc, tt, ct = value
-                if nc != cc:
-                    substats = '%d/%d' % (nc, cc)
-                else:
-                    substats = '%d' % (nc,)
+                substats = '%d/%d' % (nc, cc) if nc != cc else '%d' % (nc,)
                 substats = '%s %s %s  %s' % (substats.rjust(7+2*len(indent)),
                                              f8(tt), f8(ct), name)
                 left_width = name_size + 1
@@ -552,15 +542,15 @@ def func_get_function_name(func):
     return func[2]
 
 def func_std_string(func_name): # match what old profile produced
-    if func_name[:2] == ('~', 0):
-        # special case for built-in functions
-        name = func_name[2]
-        if name.startswith('<') and name.endswith('>'):
-            return '{%s}' % name[1:-1]
-        else:
-            return name
-    else:
+    if func_name[:2] != ('~', 0):
         return "%s:%d(%s)" % func_name
+
+    # special case for built-in functions
+    name = func_name[2]
+    if name.startswith('<') and name.endswith('>'):
+        return '{%s}' % name[1:-1]
+    else:
+        return name
 
 #**************************************************************************
 # The following functions combine statistics for pairs functions.
@@ -577,9 +567,7 @@ def add_func_stats(target, source):
 
 def add_callers(target, source):
     """Combine two caller lists in a single list."""
-    new_callers = {}
-    for func, caller in target.items():
-        new_callers[func] = caller
+    new_callers = {func: caller for func, caller in target.items()}
     for func, caller in source.items():
         if func in new_callers:
             if isinstance(caller, tuple):
@@ -594,10 +582,7 @@ def add_callers(target, source):
 
 def count_calls(callers):
     """Sum the caller statistics to get total number of calls received."""
-    nc = 0
-    for calls in callers.values():
-        nc += calls
-    return nc
+    return sum(callers.values())
 
 #**************************************************************************
 # The following functions support printing of reports

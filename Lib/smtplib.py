@@ -349,27 +349,24 @@ class SMTP:
         """Send `s' to the server."""
         if self.debuglevel > 0:
             self._print_debug('send:', repr(s))
-        if self.sock:
-            if isinstance(s, str):
-                # send is used by the 'data' command, where command_encoding
-                # should not be used, but 'data' needs to convert the string to
-                # binary itself anyway, so that's not a problem.
-                s = s.encode(self.command_encoding)
-            sys.audit("smtplib.send", self, s)
-            try:
-                self.sock.sendall(s)
-            except OSError:
-                self.close()
-                raise SMTPServerDisconnected('Server not connected')
-        else:
+        if not self.sock:
             raise SMTPServerDisconnected('please run connect() first')
+
+        if isinstance(s, str):
+            # send is used by the 'data' command, where command_encoding
+            # should not be used, but 'data' needs to convert the string to
+            # binary itself anyway, so that's not a problem.
+            s = s.encode(self.command_encoding)
+        sys.audit("smtplib.send", self, s)
+        try:
+            self.sock.sendall(s)
+        except OSError:
+            self.close()
+            raise SMTPServerDisconnected('Server not connected')
 
     def putcmd(self, cmd, args=""):
         """Send a command to the server."""
-        if args == "":
-            str = '%s%s' % (cmd, CRLF)
-        else:
-            str = '%s %s%s' % (cmd, args, CRLF)
+        str = '%s%s' % (cmd, CRLF) if args == "" else '%s %s%s' % (cmd, args, CRLF)
         self.send(str)
 
     def getreply(self):
@@ -564,18 +561,17 @@ class SMTP:
             self._print_debug('data:', (code, repl))
         if code != 354:
             raise SMTPDataError(code, repl)
-        else:
-            if isinstance(msg, str):
-                msg = _fix_eols(msg).encode('ascii')
-            q = _quote_periods(msg)
-            if q[-2:] != bCRLF:
-                q = q + bCRLF
-            q = q + b"." + bCRLF
-            self.send(q)
-            (code, msg) = self.getreply()
-            if self.debuglevel > 0:
-                self._print_debug('data:', (code, msg))
-            return (code, msg)
+        if isinstance(msg, str):
+            msg = _fix_eols(msg).encode('ascii')
+        q = _quote_periods(msg)
+        if q[-2:] != bCRLF:
+            q = q + bCRLF
+        q = q + b"." + bCRLF
+        self.send(q)
+        (code, msg) = self.getreply()
+        if self.debuglevel > 0:
+            self._print_debug('data:', (code, msg))
+        return (code, msg)
 
     def verify(self, address):
         """SMTP 'verify' command -- checks for address validity."""
@@ -602,11 +598,14 @@ class SMTP:
          SMTPHeloError            The server didn't reply properly to
                                   the helo greeting.
         """
-        if self.helo_resp is None and self.ehlo_resp is None:
-            if not (200 <= self.ehlo()[0] <= 299):
-                (code, resp) = self.helo()
-                if not (200 <= code <= 299):
-                    raise SMTPHeloError(code, resp)
+        if (
+            self.helo_resp is None
+            and self.ehlo_resp is None
+            and not (200 <= self.ehlo()[0] <= 299)
+        ):
+            (code, resp) = self.helo()
+            if not (200 <= code <= 299):
+                raise SMTPHeloError(code, resp)
 
     def auth(self, mechanism, authobject, *, initial_response_ok=True):
         """Authentication command - requires response processing.
@@ -766,38 +765,37 @@ class SMTP:
             raise SMTPNotSupportedError(
                 "STARTTLS extension not supported by server.")
         (resp, reply) = self.docmd("STARTTLS")
-        if resp == 220:
-            if not _have_ssl:
-                raise RuntimeError("No SSL support included in this Python")
-            if context is not None and keyfile is not None:
-                raise ValueError("context and keyfile arguments are mutually "
-                                 "exclusive")
-            if context is not None and certfile is not None:
-                raise ValueError("context and certfile arguments are mutually "
-                                 "exclusive")
-            if keyfile is not None or certfile is not None:
-                import warnings
-                warnings.warn("keyfile and certfile are deprecated, use a "
-                              "custom context instead", DeprecationWarning, 2)
-            if context is None:
-                context = ssl._create_stdlib_context(certfile=certfile,
-                                                     keyfile=keyfile)
-            self.sock = context.wrap_socket(self.sock,
-                                            server_hostname=self._host)
-            self.file = None
-            # RFC 3207:
-            # The client MUST discard any knowledge obtained from
-            # the server, such as the list of SMTP service extensions,
-            # which was not obtained from the TLS negotiation itself.
-            self.helo_resp = None
-            self.ehlo_resp = None
-            self.esmtp_features = {}
-            self.does_esmtp = False
-        else:
+        if resp != 220:
             # RFC 3207:
             # 501 Syntax error (no parameters allowed)
             # 454 TLS not available due to temporary reason
             raise SMTPResponseException(resp, reply)
+        if not _have_ssl:
+            raise RuntimeError("No SSL support included in this Python")
+        if context is not None and keyfile is not None:
+            raise ValueError("context and keyfile arguments are mutually "
+                             "exclusive")
+        if context is not None and certfile is not None:
+            raise ValueError("context and certfile arguments are mutually "
+                             "exclusive")
+        if keyfile is not None or certfile is not None:
+            import warnings
+            warnings.warn("keyfile and certfile are deprecated, use a "
+                          "custom context instead", DeprecationWarning, 2)
+        if context is None:
+            context = ssl._create_stdlib_context(certfile=certfile,
+                                                 keyfile=keyfile)
+        self.sock = context.wrap_socket(self.sock,
+                                        server_hostname=self._host)
+        self.file = None
+        # RFC 3207:
+        # The client MUST discard any knowledge obtained from
+        # the server, such as the list of SMTP service extensions,
+        # which was not obtained from the TLS negotiation itself.
+        self.helo_resp = None
+        self.ehlo_resp = None
+        self.esmtp_features = {}
+        self.does_esmtp = False
         return (resp, reply)
 
     def sendmail(self, from_addr, to_addrs, msg, mail_options=(),
@@ -885,7 +883,7 @@ class SMTP:
             to_addrs = [to_addrs]
         for each in to_addrs:
             (code, resp) = self.rcpt(each, rcpt_options)
-            if (code != 250) and (code != 251):
+            if code not in [250, 251]:
                 senderrs[each] = (code, resp)
             if code == 421:
                 self.close()

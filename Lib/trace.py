@@ -134,14 +134,14 @@ def _fullmodname(path):
     longest = ""
     for dir in sys.path:
         dir = os.path.normcase(dir)
-        if comparepath.startswith(dir) and comparepath[len(dir)] == os.sep:
-            if len(dir) > len(longest):
-                longest = dir
+        if (
+            comparepath.startswith(dir)
+            and comparepath[len(dir)] == os.sep
+            and len(dir) > len(longest)
+        ):
+            longest = dir
 
-    if longest:
-        base = path[len(longest) + 1:]
-    else:
-        base = path
+    base = path[len(longest) + 1:] if longest else path
     # the drive letter is never part of the module name
     drive, base = os.path.splitdrive(base)
     base = base.replace(os.sep, ".")
@@ -263,10 +263,7 @@ class CoverageResults:
 
             # If desired, get a list of the line numbers which represent
             # executable content (returned as a dict for better lookup speed)
-            if show_missing:
-                lnotab = _find_executable_linenos(filename)
-            else:
-                lnotab = {}
+            lnotab = _find_executable_linenos(filename) if show_missing else {}
             source = linecache.getlines(filename)
             coverpath = os.path.join(dir, modulename + ".cover")
             with open(filename, 'rb') as fp:
@@ -314,7 +311,7 @@ class CoverageResults:
                     outfile.write("%5d: " % lines_hit[lineno])
                     n_hits += 1
                     n_lines += 1
-                elif lineno in lnotab and not PRAGMA_NOCOVER in line:
+                elif lineno in lnotab and PRAGMA_NOCOVER not in line:
                     # Highlight never-executed lines, unless the line contains
                     # #pragma: NO COVER
                     outfile.write(">>>>>> ")
@@ -327,13 +324,11 @@ class CoverageResults:
 
 def _find_lines_from_code(code, strs):
     """Return dict where keys are lines in the line number table."""
-    linenos = {}
-
-    for _, lineno in dis.findlinestarts(code):
-        if lineno not in strs:
-            linenos[lineno] = 1
-
-    return linenos
+    return {
+        lineno: 1
+        for _, lineno in dis.findlinestarts(code)
+        if lineno not in strs
+    }
 
 def _find_lines(code, strs):
     """Return lineno dict for all code objects reachable from code."""
@@ -361,12 +356,11 @@ def _find_strings(filename, encoding=None):
     with open(filename, encoding=encoding) as f:
         tok = tokenize.generate_tokens(f.readline)
         for ttype, tstr, start, end, line in tok:
-            if ttype == token.STRING:
-                if prev_ttype == token.INDENT:
-                    sline, scol = start
-                    eline, ecol = end
-                    for i in range(sline, eline + 1):
-                        d[i] = 1
+            if ttype == token.STRING and prev_ttype == token.INDENT:
+                sline, scol = start
+                eline, ecol = end
+                for i in range(sline, eline + 1):
+                    d[i] = 1
             prev_ttype = ttype
     return d
 
@@ -467,11 +461,7 @@ class Trace:
     def file_module_function_of(self, frame):
         code = frame.f_code
         filename = code.co_filename
-        if filename:
-            modulename = _modname(filename)
-        else:
-            modulename = None
-
+        modulename = _modname(filename) if filename else None
         funcname = code.co_name
         clsname = None
         if code in self._caller_cache:
@@ -531,22 +521,23 @@ class Trace:
         If the code block being entered is to be ignored, returns `None',
         else returns self.localtrace.
         """
-        if why == 'call':
-            code = frame.f_code
-            filename = frame.f_globals.get('__file__', None)
-            if filename:
-                # XXX _modname() doesn't work right for packages, so
-                # the ignore support won't work right for packages
-                modulename = _modname(filename)
-                if modulename is not None:
-                    ignore_it = self.ignore.names(filename, modulename)
-                    if not ignore_it:
-                        if self.trace:
-                            print((" --- modulename: %s, funcname: %s"
-                                   % (modulename, code.co_name)))
-                        return self.localtrace
-            else:
-                return None
+        if why != 'call':
+            return
+        code = frame.f_code
+        filename = frame.f_globals.get('__file__', None)
+        if not filename:
+            return None
+
+        # XXX _modname() doesn't work right for packages, so
+        # the ignore support won't work right for packages
+        modulename = _modname(filename)
+        if modulename is not None:
+            ignore_it = self.ignore.names(filename, modulename)
+            if not ignore_it:
+                if self.trace:
+                    print((" --- modulename: %s, funcname: %s"
+                           % (modulename, code.co_name)))
+                return self.localtrace
 
     def localtrace_trace_and_count(self, frame, why, arg):
         if why == "line":

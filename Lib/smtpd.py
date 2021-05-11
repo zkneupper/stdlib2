@@ -319,10 +319,11 @@ class SMTPChannel(asynchat.async_chat):
             limit = self.max_command_size_limit
         elif self.smtp_state == self.DATA:
             limit = self.data_size_limit
-        if limit and self.num_bytes > limit:
-            return
-        elif limit:
-            self.num_bytes += len(data)
+        if limit:
+            if self.num_bytes > limit:
+                return
+            else:
+                self.num_bytes += len(data)
         if self._decode_data:
             self.received_lines.append(str(data, 'utf-8'))
         else:
@@ -807,10 +808,7 @@ class MailmanProxy(PureProxy):
             if len(parts) > 2:
                 continue
             listname = parts[0]
-            if len(parts) == 2:
-                command = parts[1]
-            else:
-                command = ''
+            command = parts[1] if len(parts) == 2 else ''
             if not Utils.list_exists(listname) or command not in (
                     '', 'admin', 'owner', 'request', 'join', 'leave'):
                 continue
@@ -855,10 +853,7 @@ class MailmanProxy(PureProxy):
                 msg.Enqueue(mlist, torequest=1)
             elif command in ('join', 'leave'):
                 # TBD: this is a hack!
-                if command == 'join':
-                    msg['Subject'] = 'subscribe'
-                else:
-                    msg['Subject'] = 'unsubscribe'
+                msg['Subject'] = 'subscribe' if command == 'join' else 'unsubscribe'
                 msg.Enqueue(mlist, torequest=1)
 
 
